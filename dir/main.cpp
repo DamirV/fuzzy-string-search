@@ -2,7 +2,13 @@
 #include <fstream>
 #include <string>
 #include <ctime>
+#include <algorithm>
+#include <list>
 
+
+bool comp(std::string& str1, std::string& str2) {
+	return str1.length() < str2.length();
+}
 
 void main() {
 	std::ios::sync_with_stdio(false);
@@ -14,14 +20,13 @@ void main() {
 	int tempValue;
 	int keySize;
 	int minValue;
+	int place[255] = { 0 };
 	int* offset;
 	int* rate;
 	char* text;
 	char* key;
-	char* tempText;
 	int** editDistance;
 	std::string fileName;
-	std::string tempKey;
 	std::ifstream file;
 
 	//ввод названия .txt файла или пути к .txt файлу
@@ -32,47 +37,65 @@ void main() {
 	//если файл найден, то загружаем данные
 	if (file.is_open()) {
 		std::cout << "File is open" << std::endl;
-		std::cout << "Loading..." << std::endl;
+		std::cout << "Loading text..." << std::endl;
 
-		file.seekg(0, std::ios::end);
-		size = file.tellg();
-		tempText = new char[size];
-		file.seekg(0, std::ios::beg);
-		file.read(tempText, size);
-		file.close();
+		std::list<std::string> sortStrings;
 
 		strCount = 0;
-		for (int i = 0; i < size; ++i) {
-			if (tempText[i] == '\n') {
-				strCount++;
-				--size;
+		size = 0;
+		while (!file.eof()) {
+			std::string tempStr;
+			getline(file, tempStr);
+			sortStrings.push_back(tempStr);
+		}
+		file.close();
+		std::cout << "Loading text complite" << std::endl;
+
+		std::cout << "Sorting..." << std::endl;
+		sortStrings.sort();
+		sortStrings.unique();
+		sortStrings.sort(comp);
+		std::cout << "Sorting complite" << std::endl;
+
+		std::cout << "Creating additional objects..." << std::endl;
+		strCount = sortStrings.size();
+
+		std::list<std::string>::iterator it = sortStrings.begin();
+		for (it; it != sortStrings.end(); ++it) {
+			std::string tempStr = *it;
+			int tempLength = tempStr.length();
+			size += tempLength;
+			for (int i = tempLength + 1; i < 255; ++i) {
+				++place[i];
 			}
 		}
-		tempText[size] = '\0';
-		++size;
-		++strCount;
 
 		text = new char[size];
-		for (int i = 0; i < size; ++i) {
-			text[i] = tempText[i];
-		}
-		delete[] tempText;
-
 		rate = new int[strCount];
 		offset = new int[strCount];
 
-		int j = 0;
-		int start = 0;
-		for (int i = 0; i < size; ++i) {
-			if (text[i] == '\n' || text[i] == '\0') {
-				rate[j] = i - start;
-				offset[j] = start;
-				start = i + 1;
-				++j;
+		int k = 0;
+		int l = 0;
+		it = sortStrings.begin();
+		for (it; it != sortStrings.end(); ++it) {
+			std::string tempStr = *it;
+			int tempLength = tempStr.length();
+			rate[l] = tempLength;
+
+			for (int j = 0; j < tempLength; ++j) {
+				text[k] = tempStr[j];
+				++k;
 			}
+			++l;
 		}
 
-		std::cout << "Loading complite" << std::endl;
+		offset[0] = 0;
+		for (int i = 1; i < strCount; ++i) {
+			offset[i] = offset[i - 1] + rate[i - 1];
+		}
+		std::cout << "Creating additional objects complite" << std::endl;
+		std::cout << "All done" << std::endl;
+
 	}
 	else {
 		std::cout << "File not found" << std::endl;
@@ -84,8 +107,9 @@ void main() {
 	for (;;) {
 		printf("______________________________\n");
 		printf("Enter the key (!q to quit): ");
-
+		std::string tempKey;
 		std::getline(std::cin, tempKey);
+
 		keySize = tempKey.length();
 		key = new char[keySize];
 		for (int i = 0; i < keySize; ++i) {
@@ -109,13 +133,12 @@ void main() {
 			editDistance[0][i] = i;
 		}
 
+		int start = keySize - 1;
+		int finish = keySize + 2;
+
 		//ищем подходящие строки
 		clock_t startTime = clock();
-		for (int k = 0; k < strCount; ++k) {
-
-			if (rate[k] - keySize > 1 || rate[k] - keySize < -1) {
-				continue;
-			}
+		for (int k = place[start]; k < place[finish]; ++k) {
 
 			for (int i = 1; i < keySize + 1; ++i) {
 				minValue = INT16_MAX;
